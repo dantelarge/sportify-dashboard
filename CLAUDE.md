@@ -4,66 +4,79 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-This is a **Quarto + R** data dashboard project that renders to a static website and publishes to GitHub Pages. It is not a Node.js project.
+**Sportify** is a Next.js 14 (App Router) web music player that uses the Spotify Web API and Web Playback SDK to let users search for and play music in the browser. It uses TypeScript and Tailwind CSS.
 
 ## Development Commands
 
-### Rendering the Site
-
 ```bash
-# Render the entire site
-quarto render
+# Install dependencies
+npm install
 
-# Render a single file
-quarto render dashboard.qmd
+# Start dev server (always access via http://127.0.0.1:3000, NOT localhost)
+npm run dev
 
-# Preview with live reload
-quarto preview
+# Build for production (static export)
+npm run build
+
+# Lint
+npm run lint
 ```
 
-### R Environment (renv)
+## Environment Setup
 
-```bash
-# Restore R packages from renv.lock (run after cloning or when lock file changes)
-Rscript -e "renv::restore()"
-
-# Install a new package and update renv.lock
-Rscript -e "renv::install('package-name'); renv::snapshot()"
+Copy `.env.local.example` to `.env.local` and fill in your Spotify Client ID:
+```
+NEXT_PUBLIC_SPOTIFY_CLIENT_ID=your_client_id_here
 ```
 
-### CI/CD
-
-The GitHub Actions workflow (`.github/workflows/publish.yml`) automatically:
-- Renders the Quarto site and publishes to the `gh-pages` branch
-- Triggers on push to `main`, daily at 9 AM UTC, or manual dispatch
+In your Spotify Developer Dashboard, add this redirect URI:
+```
+http://127.0.0.1:3000/callback
+```
 
 ## Architecture
 
-- **`_quarto.yml`** — Main site config: theme (Cosmo + custom SCSS), navigation sidebar, site title
-- **`custom.scss`** — Dark theme overrides (`#181818` background, `#ccc` text, `#75AADB` links)
-- **`index.qmd`** — Home page
-- **`dashboard.qmd`** — Main dashboard using Quarto's dashboard layout format (2-column: 35%/65%, with 3 rows in the right column)
-- **`about.qmd`** — About page
-- **`renv.lock`** — Locked R 4.5.0 + 87 packages; always update via `renv::snapshot()` after adding dependencies
+### Auth Flow (PKCE — no backend required)
+- `src/lib/auth/pkce.ts` — generates code verifier/challenge using Web Crypto API
+- `src/lib/auth/spotify-auth.ts` — builds Spotify auth URL, exchanges/refreshes tokens
+- `src/lib/auth/token-store.ts` — sessionStorage helpers; tokens expire with a 60s buffer
+- `src/contexts/auth-context.tsx` — `AuthProvider` with `isAuthenticated`, `login()`, `logout()`, `refreshIfNeeded()`
 
-## Key R Libraries in Use
+### Spotify API Client
+- `src/lib/spotify/client.ts` — fetch wrapper: auto-attaches Bearer token, handles 401 retry after refresh, 429 exponential backoff (up to 3 retries, reads `Retry-After` header)
+- `src/lib/spotify/api.ts` — typed wrappers for all endpoints used (search, player control, playback transfer)
+- `src/lib/spotify/types.ts` — TypeScript interfaces matching the Spotify OpenAPI schema
 
-- **Data**: tidyverse (dplyr, tidyr, readr, purrr), data.table, vroom
-- **Visualization**: ggplot2, scales, viridisLite, ragg
-- **External data**: googledrive, googlesheets4, httr, rvest
-- **Database**: DBI, dbplyr
+### Web Playback SDK
+- `src/contexts/player-context.tsx` — initializes `window.Spotify.Player`, transfers playback to this device on `ready`, exposes playback controls
+- `src/types/spotify-sdk.d.ts` — TypeScript declarations for `window.Spotify` and `Spotify.Player`
+- SDK loaded via `<Script strategy="lazyOnload">` in `src/app/layout.tsx`
 
-## Dashboard Layout Pattern
+### Pages
+| Route | Purpose |
+|-------|---------|
+| `/` | Redirects to `/dashboard` or `/login` |
+| `/login` | Login card with Spotify OAuth button |
+| `/callback` | Handles OAuth redirect, validates PKCE state, exchanges code for tokens |
+| `/dashboard` | Search interface with player bar |
 
-Quarto dashboard pages use column/row directives in `.qmd` files:
+### Key Patterns
+- **Token refresh**: `refreshIfNeeded()` in auth context; `getOAuthToken` SDK callback also handles async refresh
+- **Seek bar position**: `usePlayer()` hook (`src/hooks/use-player.ts`) drives a `localPosition` via `requestAnimationFrame` while playing — avoids 1s polling lag
+- **Search debounce**: 400 ms timeout in `useSearch()` hook (`src/hooks/use-search.ts`)
+- **Scopes requested**: `streaming user-read-email user-read-private user-read-playback-state user-modify-playback-state user-read-currently-playing`
 
-```markdown
-## Column {width="35%"}
-content...
+### Design Tokens (Tailwind)
+| Token | Value | Use |
+|-------|-------|-----|
+| `sp-bg` | `#181818` | Page background |
+| `sp-surface` | `#282828` | Cards, bars |
+| `sp-elevated` | `#333333` | Hover state |
+| `sp-text` | `#cccccc` | Body text |
+| `sp-muted` | `#b3b3b3` | Secondary text |
+| `sp-accent` | `#75AADB` | Active/highlight |
 
-## Column {width="65%"}
-### Row {height="70%"}
-content...
-```
-
-R code runs inline via knitr code chunks (```` ```{r} ````).
+## Notes
+- Spotify Premium is required for in-browser playback via the Web Playback SDK
+- Always use `http://127.0.0.1:3000` (not `localhost`) — Spotify rejects `localhost` redirect URIs
+- The Client Secret is never used; PKCE removes the need for it

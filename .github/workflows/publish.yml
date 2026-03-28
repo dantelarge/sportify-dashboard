@@ -2,10 +2,8 @@ on:
   workflow_dispatch:
   push:
     branches: main
-  schedule:
-    - cron: "0 9 * * *"
 
-name: Quarto Publish
+name: Deploy to GitHub Pages
 
 jobs:
   build-deploy:
@@ -16,22 +14,22 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v4
 
-      - name: Set up Quarto
-        uses: quarto-dev/quarto-actions/setup@v2
-
-      - name: Install R
-        uses: r-lib/actions/setup-r@v2
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
         with:
-          r-version: '4.5.0'
+          node-version: '20'
+          cache: 'npm'
 
-      - name: Install R Dependencies
-        uses: r-lib/actions/setup-renv@v2
-        with:
-          cache-version: 1
+      - name: Install dependencies
+        run: npm ci
 
-      - name: Render and Publish
-        uses: quarto-dev/quarto-actions/publish@v2
-        with:
-          target: gh-pages
+      - name: Build
+        run: npm run build
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          NEXT_PUBLIC_SPOTIFY_CLIENT_ID: ${{ secrets.NEXT_PUBLIC_SPOTIFY_CLIENT_ID }}
+
+      - name: Deploy to GitHub Pages
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./out

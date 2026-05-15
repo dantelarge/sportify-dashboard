@@ -1,15 +1,15 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url>
+    <loc>https://dantelarge.github.io/sportify-dashboard/about.html</loc>
+    <lastmod>2026-05-15T11:17:28.763Z</lastmod>
+  </url>
+  <url>
     <loc>https://dantelarge.github.io/sportify-dashboard/index.html</loc>
-    <lastmod>2026-05-14T11:11:03.146Z</lastmod>
+    <lastmod>2026-05-15T11:17:28.763Z</lastmod>
   </url>
   <url>
     <loc>https://dantelarge.github.io/sportify-dashboard/dashboard.html</loc>
-    <lastmod>2026-05-14T11:11:03.146Z</lastmod>
-  </url>
-  <url>
-    <loc>https://dantelarge.github.io/sportify-dashboard/about.html</loc>
-    <lastmod>2026-05-14T11:11:03.145Z</lastmod>
+    <lastmod>2026-05-15T11:17:28.763Z</lastmod>
   </url>
 </urlset>
